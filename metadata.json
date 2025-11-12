@@ -1,0 +1,7 @@
+{
+  "name": "Copy of Dojo Ki Aikido Manager",
+  "description": "An application to manage student records, ranks, and monthly payments for a Ki Aikido dojo. It includes features for tracking attendance, exam history, and financial statistics with a clean, responsive interface and dark mode support.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
