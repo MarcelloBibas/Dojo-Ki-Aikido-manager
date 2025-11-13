@@ -8,6 +8,11 @@ interface StudentCardProps {
 }
 
 const getPaymentStatus = (student: Student): { text: string; color: string } => {
+  // Professores são isentos de pagamento
+  if (student.status === 'Professor') {
+      return { text: 'Isento', color: 'bg-dojo-blue-500' };
+  }
+
   const lastPayment = student.payments.length > 0 
     ? new Date(student.payments.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0].date + 'T00:00:00')
     : null;
@@ -40,15 +45,33 @@ const getPaymentStatus = (student: Student): { text: string; color: string } => 
 
 const getHighestRank = (student: Student): Rank => {
     if (student.exams.length === 0) return Rank.None;
-    // Assuming RANKS_ORDERED is available or sorting logic is in place
-    // A simple sort by date is sufficient here
     const sortedExams = [...student.exams].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     return sortedExams[0].rank;
 }
 
+const getStatusLabel = (status: Student['status']): string => {
+    switch (status) {
+        case 'Active': return 'Ativo';
+        case 'Inactive': return 'Inativo';
+        case 'Professor': return 'Professor';
+        default: return status;
+    }
+};
+
+const getStatusColor = (status: Student['status']): string => {
+     switch (status) {
+        case 'Active': return 'text-green-600 dark:text-green-400';
+        case 'Inactive': return 'text-gray-500';
+        case 'Professor': return 'text-dojo-blue-600 dark:text-dojo-blue-400';
+        default: return 'text-gray-500';
+    }
+};
+
 export const StudentCard: React.FC<StudentCardProps> = ({ student, onSelect }) => {
   const { text, color } = getPaymentStatus(student);
   const highestRank = getHighestRank(student);
+  const statusLabel = getStatusLabel(student.status);
+  const statusTextColor = getStatusColor(student.status);
 
   return (
     <div
@@ -66,8 +89,8 @@ export const StudentCard: React.FC<StudentCardProps> = ({ student, onSelect }) =
           <span className={`px-3 py-1 text-xs font-semibold text-white rounded-full ${color}`}>{text}</span>
         </div>
         <p className="text-gray-600 dark:text-gray-400">{highestRank}</p>
-        <p className={`text-sm font-medium ${student.status === 'Active' ? 'text-green-600 dark:text-green-400' : 'text-gray-500'}`}>
-          {student.status === 'Active' ? 'Ativo' : 'Inativo'}
+        <p className={`text-sm font-medium ${statusTextColor}`}>
+          {statusLabel}
         </p>
       </div>
     </div>

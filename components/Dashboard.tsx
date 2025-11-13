@@ -35,10 +35,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ students }) => {
     }).length;
 
     const activeStudents = students.filter(s => s.status === 'Active').length;
-    const inactiveStudents = students.length - activeStudents;
+    const professorCount = students.filter(s => s.status === 'Professor').length;
+    // const inactiveStudents = students.length - activeStudents - professorCount;
     
+    // Include Professors in rank distribution as they are technically active on the mat
     const rankDistribution = RANKS_ORDERED.map(rank => {
-        const count = students.filter(s => s.status === 'Active' && s.exams.length > 0 && [...s.exams].sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0].rank === rank).length;
+        const count = students.filter(s => (s.status === 'Active' || s.status === 'Professor') && s.exams.length > 0 && [...s.exams].sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0].rank === rank).length;
         return { name: rank, value: count };
     }).filter(d => d.value > 0);
 
@@ -77,7 +79,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ students }) => {
         </div>
         <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
           <h2 className="text-lg font-semibold text-gray-700 dark:text-gray-300">Total de Alunos Ativos</h2>
-          <p className="text-3xl font-bold text-yellow-500">{activeStudents}</p>
+          <div className="flex items-baseline space-x-2">
+            <p className="text-3xl font-bold text-yellow-500">{activeStudents}</p>
+            {professorCount > 0 && (
+                 <span className="text-sm text-gray-500 dark:text-gray-400">(+ {professorCount} Professores)</span>
+            )}
+          </div>
         </div>
       </div>
 
@@ -103,7 +110,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ students }) => {
         </div>
         
         <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
-          <h2 className="text-xl font-bold mb-4">Distribuição de Graduações (Ativos)</h2>
+          <h2 className="text-xl font-bold mb-4">Distribuição de Graduações (Ativos + Professores)</h2>
            <ResponsiveContainer width="100%" height={300}>
             <PieChart>
               <Pie

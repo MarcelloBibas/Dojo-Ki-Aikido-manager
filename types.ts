@@ -41,7 +41,7 @@ export interface Student {
   photos: string[]; // base64 strings
   exams: Exam[];
   payments: Payment[];
-  status: 'Active' | 'Inactive';
+  status: 'Active' | 'Inactive' | 'Professor';
 }
 
 export type View = 'list' | 'detail' | 'dashboard';

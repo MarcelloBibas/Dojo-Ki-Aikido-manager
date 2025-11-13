@@ -1,163 +1,177 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { useLocalStorage } from './hooks/useLocalStorage';
-import { Student, Rank, View } from './types';
+import { Student, View } from './types';
 import { StudentList } from './components/StudentList';
 import { StudentDetail } from './components/StudentDetail';
 import { Dashboard } from './components/Dashboard';
 import { SunIcon, MoonIcon, UserPlusIcon, ChartBarIcon, UsersIcon } from './components/Icons';
-
-// Mock Data
-const createInitialStudents = (): Student[] => [
-    {
-        id: '1',
-        firstName: 'Carlos',
-        lastName: 'Gracie',
-        dob: '1985-05-15',
-        address: { street: 'Rua das Flores', number: '123', complement: 'Apto 4' },
-        phone: '11987654321',
-        startDate: '2022-01-20',
-        photos: [`https://picsum.photos/seed/1/400/400`],
-        exams: [{ id: 'e1', date: '2023-11-10', rank: Rank.Kyu1 }],
-        payments: [
-            { id: 'p1', date: new Date(new Date().setMonth(new Date().getMonth() - 2)).toISOString().split('T')[0], amount: 150.00 },
-            { id: 'p2', date: new Date(new Date().setMonth(new Date().getMonth() - 1)).toISOString().split('T')[0], amount: 150.00 }
-        ],
-        status: 'Active',
-    },
-    {
-        id: '2',
-        firstName: 'Helio',
-        lastName: 'Silva',
-        dob: '1992-11-30',
-        address: { street: 'Avenida Principal', number: '456', complement: '' },
-        phone: '21912345678',
-        startDate: '2021-03-10',
-        photos: [`https://picsum.photos/seed/2/400/400`],
-        exams: [{ id: 'e2', date: '2023-08-15', rank: Rank.Shodan }],
-        payments: [
-             { id: 'p3', date: new Date(new Date().setMonth(new Date().getMonth() - 1)).toISOString().split('T')[0], amount: 180.00 }
-        ],
-        status: 'Active',
-    },
-    {
-        id: '3',
-        firstName: 'Royce',
-        lastName: 'Mendes',
-        dob: '1998-02-20',
-        address: { street: 'Travessa da Luta', number: '789', complement: 'Casa B' },
-        phone: '31988887777',
-        startDate: '2023-07-01',
-        photos: [`https://picsum.photos/seed/3/400/400`],
-        exams: [{ id: 'e3', date: '2023-12-20', rank: Rank.Kyu3 }],
-        payments: [],
-        status: 'Inactive',
-    },
-];
+import { subscribeToStudents, addStudent, updateStudent } from './services/studentService';
+import { isFirebaseConfigured } from './firebase.config';
+import { FirebaseSetup } from './components/FirebaseSetup';
 
 const App: React.FC = () => {
-    const [theme, setTheme] = useLocalStorage<'light' | 'dark'>('theme', 'light');
-    const [students, setStudents] = useLocalStorage<Student[]>('dojo-students', createInitialStudents());
-    const [currentView, setCurrentView] = useState<View>('list');
-    const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
+  // Theme handling
+  const [theme, setTheme] = useLocalStorage<'light' | 'dark'>('theme', 'light');
+  
+  // Data state
+  const [students, setStudents] = useState<Student[]>([]);
+  const [loading, setLoading] = useState(true);
+  
+  // UI State
+  const [currentView, setCurrentView] = useState<View>('list');
+  const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
 
-    useEffect(() => {
-        if (theme === 'dark') {
-            document.documentElement.classList.add('dark');
+  // Theme Effect
+  useEffect(() => {
+    if (theme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [theme]);
+
+  // Firebase Subscription
+  useEffect(() => {
+    if (!isFirebaseConfigured()) {
+      setLoading(false);
+      return;
+    }
+
+    const unsubscribe = subscribeToStudents((data) => {
+      setStudents(data);
+      setLoading(false);
+    });
+    
+    return () => unsubscribe();
+  }, []);
+
+  // Handlers
+  const handleSaveStudent = async (student: Student) => {
+    try {
+        const existing = students.find(s => s.id === student.id);
+        
+        if (existing) {
+            await updateStudent(student);
         } else {
-            document.documentElement.classList.remove('dark');
+            // Remove o ID temporário e deixa o Firestore criar um novo
+            const { id, ...data } = student;
+            await addStudent(data);
         }
-    }, [theme]);
-
-    const toggleTheme = () => {
-        setTheme(prevTheme => (prevTheme === 'light' ? 'dark' : 'light'));
-    };
-    
-    const handleSelectStudent = (id: string) => {
-        setSelectedStudentId(id);
-        setCurrentView('detail');
-    };
-
-    const handleSaveStudent = (updatedStudent: Student) => {
-        setStudents(prev => prev.map(s => s.id === updatedStudent.id ? updatedStudent : s));
         setCurrentView('list');
-        setSelectedStudentId(null);
-    };
+    } catch (error) {
+        console.error("Error saving student", error);
+        alert("Erro ao salvar aluno.");
+    }
+  };
 
-    const handleAddNewStudent = () => {
-        const newStudent: Student = {
-            id: Date.now().toString(),
-            firstName: 'Novo',
-            lastName: 'Aluno',
-            dob: '',
-            address: { street: '', number: '', complement: '' },
-            phone: '',
-            startDate: new Date().toISOString().split('T')[0],
-            photos: [],
-            exams: [],
-            payments: [],
-            status: 'Active',
-        };
-        setStudents(prev => [...prev, newStudent]);
-        setSelectedStudentId(newStudent.id);
-        setCurrentView('detail');
-    };
-    
-    const handleDeletePhoto = (studentId: string, photoIndex: number) => {
-        setStudents(prev => prev.map(s => {
-            if (s.id === studentId) {
-                const updatedPhotos = s.photos.filter((_, index) => index !== photoIndex);
-                return { ...s, photos: updatedPhotos };
-            }
-            return s;
-        }));
-    };
+  const handleDeletePhoto = async (studentId: string, photoIndex: number) => {
+      const student = students.find(s => s.id === studentId);
+      if (!student) return;
+      
+      const newPhotos = [...student.photos];
+      newPhotos.splice(photoIndex, 1);
+      
+      const updatedStudent = { ...student, photos: newPhotos };
+      try {
+          await updateStudent(updatedStudent);
+      } catch (error) {
+          console.error("Error deleting photo", error);
+          alert("Erro ao deletar foto.");
+      }
+  };
 
-    const selectedStudent = useMemo(() => students.find(s => s.id === selectedStudentId), [students, selectedStudentId]);
+  const handleAddStudent = () => {
+      setSelectedStudentId(null);
+      setCurrentView('detail');
+  };
 
-    const renderContent = () => {
-        switch (currentView) {
-            case 'detail':
-                return selectedStudent ? (
+  const handleSelectStudent = (id: string) => {
+      setSelectedStudentId(id);
+      setCurrentView('detail');
+  };
+
+  const getEmptyStudent = (): Student => ({
+      id: Date.now().toString(), // Temporary ID
+      firstName: '',
+      lastName: '',
+      dob: '',
+      address: { street: '', number: '', complement: '' },
+      phone: '',
+      startDate: new Date().toISOString().split('T')[0],
+      photos: [],
+      exams: [],
+      payments: [],
+      status: 'Active'
+  });
+
+  const selectedStudent = useMemo(() => 
+      students.find(s => s.id === selectedStudentId) || getEmptyStudent(),
+  [students, selectedStudentId]);
+
+  // Render: Se não estiver configurado, mostra a tela de setup
+  if (!isFirebaseConfigured()) {
+      return <FirebaseSetup />;
+  }
+
+  if (loading) {
+      return (
+          <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-dojo-blue-600"></div>
+          </div>
+      );
+  }
+
+  return (
+    <div className="flex h-screen bg-gray-100 dark:bg-gray-900 font-sans text-gray-900 dark:text-gray-100 overflow-hidden">
+        <div className="flex-1 flex flex-col overflow-hidden">
+            {/* Header */}
+            <header className="bg-white dark:bg-gray-800 shadow-sm z-10">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                        <span className="text-2xl font-bold text-dojo-blue-600">Dojo Manager</span>
+                    </div>
+                    <div className="flex items-center space-x-4">
+                        <button onClick={() => setCurrentView('dashboard')} className={`p-2 rounded-md ${currentView === 'dashboard' ? 'bg-dojo-blue-50 dark:bg-dojo-blue-900/50 text-dojo-blue-600 dark:text-dojo-blue-400' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'}`}>
+                            <ChartBarIcon className="h-6 w-6" />
+                        </button>
+                        <button onClick={() => setCurrentView('list')} className={`p-2 rounded-md ${currentView === 'list' ? 'bg-dojo-blue-50 dark:bg-dojo-blue-900/50 text-dojo-blue-600 dark:text-dojo-blue-400' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'}`}>
+                            <UsersIcon className="h-6 w-6" />
+                        </button>
+                        <button onClick={handleAddStudent} className="p-2 rounded-md text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+                            <UserPlusIcon className="h-6 w-6" />
+                        </button>
+                        <button
+                            onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
+                            className="p-2 rounded-md text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                        >
+                            {theme === 'light' ? <MoonIcon className="h-6 w-6" /> : <SunIcon className="h-6 w-6" />}
+                        </button>
+                    </div>
+                </div>
+            </header>
+
+            {/* Main Content */}
+            <main className="flex-1 overflow-y-auto">
+                {currentView === 'dashboard' && <Dashboard students={students} />}
+                {currentView === 'list' && (
+                    <StudentList 
+                        students={students} 
+                        onSelectStudent={handleSelectStudent} 
+                    />
+                )}
+                {currentView === 'detail' && (
                     <StudentDetail 
                         student={selectedStudent} 
                         onSave={handleSaveStudent} 
-                        onBack={() => setCurrentView('list')} 
+                        onBack={() => setCurrentView('list')}
                         onDeletePhoto={handleDeletePhoto}
                     />
-                ) : null;
-            case 'dashboard':
-                return <Dashboard students={students} />;
-            case 'list':
-            default:
-                return <StudentList students={students} onSelectStudent={handleSelectStudent} />;
-        }
-    };
-
-    return (
-        <div className="w-screen h-screen bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 flex flex-col antialiased">
-            <header className="bg-white dark:bg-gray-800 shadow-md p-4 flex justify-between items-center z-20">
-                <h1 className="text-xl md:text-2xl font-bold text-dojo-blue-700 dark:text-dojo-blue-400">Dojo Ki Aikido Manager</h1>
-                <div className="flex items-center space-x-2 sm:space-x-4">
-                    <button onClick={() => setCurrentView('list')} title="Alunos" className={`p-2 rounded-full ${currentView === 'list' ? 'bg-dojo-blue-100 dark:bg-dojo-blue-900' : 'hover:bg-gray-100 dark:hover:bg-gray-700'}`}>
-                        <UsersIcon className="h-6 w-6 text-dojo-blue-600 dark:text-dojo-blue-400"/>
-                    </button>
-                    <button onClick={() => setCurrentView('dashboard')} title="Dashboard" className={`p-2 rounded-full ${currentView === 'dashboard' ? 'bg-dojo-blue-100 dark:bg-dojo-blue-900' : 'hover:bg-gray-100 dark:hover:bg-gray-700'}`}>
-                        <ChartBarIcon className="h-6 w-6 text-dojo-blue-600 dark:text-dojo-blue-400"/>
-                    </button>
-                    <button onClick={handleAddNewStudent} title="Adicionar Aluno" className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700">
-                        <UserPlusIcon className="h-6 w-6 text-dojo-blue-600 dark:text-dojo-blue-400"/>
-                    </button>
-                    <button onClick={toggleTheme} className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700">
-                        {theme === 'light' ? <MoonIcon className="h-6 w-6"/> : <SunIcon className="h-6 w-6"/>}
-                    </button>
-                </div>
-            </header>
-            <main className="flex-1 overflow-auto">
-                {renderContent()}
+                )}
             </main>
         </div>
-    );
+    </div>
+  );
 };
 
 export default App;

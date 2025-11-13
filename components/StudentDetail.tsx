@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Student, Rank, Exam, Payment } from '../types';
 import { RANKS_ORDERED } from '../constants';
@@ -10,10 +11,11 @@ interface StudentDetailProps {
   onDeletePhoto: (studentId: string, photoIndex: number) => void;
 }
 
+// Added [color-scheme:light] dark:[color-scheme:dark] to fix date picker visibility
 const InputField: React.FC<React.InputHTMLAttributes<HTMLInputElement> & { label: string }> = ({ label, ...props }) => (
     <div>
         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{label}</label>
-        <input {...props} className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-dojo-blue-500 focus:border-dojo-blue-500 sm:text-sm text-gray-900 dark:text-gray-100" />
+        <input {...props} className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-dojo-blue-500 focus:border-dojo-blue-500 sm:text-sm text-gray-900 dark:text-gray-100 [color-scheme:light] dark:[color-scheme:dark]" />
     </div>
 );
 
@@ -57,8 +59,6 @@ export const StudentDetail: React.FC<StudentDetailProps> = ({ student, onSave, o
   
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
-      // Fix: Manually iterate FileList to ensure correct typing for files, preventing the 'unknown' type error.
-      // Using Promise.all also correctly handles multiple file uploads and avoids race conditions from stale state.
       const files: File[] = [];
       for (let i = 0; i < e.target.files.length; i++) {
         const file = e.target.files.item(i);
@@ -220,9 +220,10 @@ export const StudentDetail: React.FC<StudentDetailProps> = ({ student, onSave, o
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Status</label>
-                        <select value={formData.status} onChange={e => handleChange('status', e.target.value as 'Active' | 'Inactive')} disabled={!isAdmin} className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-dojo-blue-500 focus:border-dojo-blue-500 sm:text-sm text-gray-900 dark:text-gray-100">
+                        <select value={formData.status} onChange={e => handleChange('status', e.target.value as any)} disabled={!isAdmin} className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-dojo-blue-500 focus:border-dojo-blue-500 sm:text-sm text-gray-900 dark:text-gray-100">
                             <option value="Active">Ativo</option>
                             <option value="Inactive">Inativo</option>
+                            <option value="Professor">Professor</option>
                         </select>
                     </div>
                 </div>
@@ -259,7 +260,7 @@ export const StudentDetail: React.FC<StudentDetailProps> = ({ student, onSave, o
                 <div className="space-y-4">
                     {formData.exams.map((exam, index) => (
                         <div key={exam.id} className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
-                            <input type="date" value={exam.date} onChange={e => handleExamChange(index, 'date', e.target.value)} disabled={!isAdmin} className="px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md sm:text-sm text-gray-900 dark:text-gray-100"/>
+                            <input type="date" value={exam.date} onChange={e => handleExamChange(index, 'date', e.target.value)} disabled={!isAdmin} className="px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md sm:text-sm text-gray-900 dark:text-gray-100 [color-scheme:light] dark:[color-scheme:dark]"/>
                             <select value={exam.rank} onChange={e => handleExamChange(index, 'rank', e.target.value)} disabled={!isAdmin} className="px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md sm:text-sm text-gray-900 dark:text-gray-100">
                                 {RANKS_ORDERED.map(r => <option key={r} value={r}>{r}</option>)}
                             </select>
@@ -270,22 +271,24 @@ export const StudentDetail: React.FC<StudentDetailProps> = ({ student, onSave, o
                 {isAdmin && <button type="button" onClick={addExam} className="mt-4 px-4 py-2 bg-dojo-blue-500 text-white font-semibold rounded-lg shadow-sm hover:bg-dojo-blue-600">Adicionar Exame</button>}
             </section>
 
-            <section className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
-                <h2 className="text-xl font-bold mb-4 text-dojo-blue-800 dark:text-dojo-blue-300">Histórico de Pagamentos</h2>
-                <div className="space-y-4">
-                     {formData.payments.map((payment, index) => (
-                        <div key={payment.id} className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
-                            <input type="date" value={payment.date} onChange={e => handlePaymentChange(index, 'date', e.target.value)} disabled={!isAdmin} className="px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md sm:text-sm text-gray-900 dark:text-gray-100"/>
-                            <div className="relative">
-                                <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-500">R$</span>
-                                <input type="number" step="0.01" value={payment.amount} onChange={e => handlePaymentChange(index, 'amount', parseFloat(e.target.value))} disabled={!isAdmin} className="pl-10 w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md sm:text-sm text-gray-900 dark:text-gray-100"/>
+            {student.status !== 'Professor' && (
+                <section className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
+                    <h2 className="text-xl font-bold mb-4 text-dojo-blue-800 dark:text-dojo-blue-300">Histórico de Pagamentos</h2>
+                    <div className="space-y-4">
+                        {formData.payments.map((payment, index) => (
+                            <div key={payment.id} className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
+                                <input type="date" value={payment.date} onChange={e => handlePaymentChange(index, 'date', e.target.value)} disabled={!isAdmin} className="px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md sm:text-sm text-gray-900 dark:text-gray-100 [color-scheme:light] dark:[color-scheme:dark]"/>
+                                <div className="relative">
+                                    <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-500">R$</span>
+                                    <input type="number" step="0.01" value={payment.amount} onChange={e => handlePaymentChange(index, 'amount', parseFloat(e.target.value))} disabled={!isAdmin} className="pl-10 w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md sm:text-sm text-gray-900 dark:text-gray-100"/>
+                                </div>
+                                {isAdmin && <button type="button" onClick={() => removePayment(index)} className="px-3 py-2 bg-red-500 text-white text-sm font-medium rounded-md">Remover</button>}
                             </div>
-                            {isAdmin && <button type="button" onClick={() => removePayment(index)} className="px-3 py-2 bg-red-500 text-white text-sm font-medium rounded-md">Remover</button>}
-                        </div>
-                    ))}
-                </div>
-                {isAdmin && <button type="button" onClick={addPayment} className="mt-4 px-4 py-2 bg-dojo-blue-500 text-white font-semibold rounded-lg shadow-sm hover:bg-dojo-blue-600">Adicionar Pagamento</button>}
-            </section>
+                        ))}
+                    </div>
+                    {isAdmin && <button type="button" onClick={addPayment} className="mt-4 px-4 py-2 bg-dojo-blue-500 text-white font-semibold rounded-lg shadow-sm hover:bg-dojo-blue-600">Adicionar Pagamento</button>}
+                </section>
+            )}
         </form>
 
         {isCameraOpen && (
