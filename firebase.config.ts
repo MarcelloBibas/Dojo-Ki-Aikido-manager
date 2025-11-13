@@ -1,4 +1,4 @@
-import { initializeApp } from 'firebase/app';
+import * as firebaseApp from 'firebase/app';
 import { getFirestore } from 'firebase/firestore';
 
 // ------------------------------------------------------------------
@@ -24,7 +24,8 @@ export const isFirebaseConfigured = () => {
 };
 
 // Inicializa o Firebase
-const app = initializeApp(firebaseConfig);
+// Utilizando cast 'as any' para evitar erros de tipagem caso o ambiente TS não detecte corretamente os exports do módulo
+const app = (firebaseApp as any).initializeApp(firebaseConfig);
 
 // Inicializa o Firestore (Banco de Dados)
 export const db = getFirestore(app);

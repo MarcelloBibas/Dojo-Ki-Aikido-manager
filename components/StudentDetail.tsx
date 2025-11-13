@@ -56,6 +56,42 @@ export const StudentDetail: React.FC<StudentDetailProps> = ({ student, onSave, o
       address: { ...prev.address, [field]: value },
     }));
   };
+
+  // Helper to resize and compress images
+  const processImage = (dataUrl: string, maxWidth: number = 800, quality: number = 0.7): Promise<string> => {
+    return new Promise((resolve) => {
+        const img = new Image();
+        img.src = dataUrl;
+        img.onload = () => {
+            const canvas = document.createElement('canvas');
+            let width = img.width;
+            let height = img.height;
+
+            if (width > height) {
+                if (width > maxWidth) {
+                    height = Math.round(height * (maxWidth / width));
+                    width = maxWidth;
+                }
+            } else {
+                if (height > maxWidth) {
+                    width = Math.round(width * (maxWidth / height));
+                    height = maxWidth;
+                }
+            }
+
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+                ctx.drawImage(img, 0, 0, width, height);
+                resolve(canvas.toDataURL('image/jpeg', quality));
+            } else {
+                resolve(dataUrl); // Fallback
+            }
+        };
+        img.onerror = () => resolve(dataUrl); // Fallback
+    });
+  };
   
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
@@ -76,7 +112,8 @@ export const StudentDetail: React.FC<StudentDetailProps> = ({ student, onSave, o
           const reader = new FileReader();
           reader.onloadend = () => {
             if (typeof reader.result === 'string') {
-              resolve(reader.result);
+              // Compress uploaded file
+              processImage(reader.result).then(resolve);
             } else {
               reject(new Error('Failed to read file as data URL.'));
             }
@@ -99,7 +136,7 @@ export const StudentDetail: React.FC<StudentDetailProps> = ({ student, onSave, o
 
   const openCamera = () => {
     if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-        navigator.mediaDevices.getUserMedia({ video: true })
+        navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } }) // Prefer back camera on mobile
             .then(stream => {
                 if (videoRef.current) {
                     videoRef.current.srcObject = stream;
@@ -127,13 +164,31 @@ export const StudentDetail: React.FC<StudentDetailProps> = ({ student, onSave, o
           const video = videoRef.current;
           const canvas = canvasRef.current;
           
-          canvas.width = video.videoWidth;
-          canvas.height = video.videoHeight;
+          // Resize logic for camera capture
+          const MAX_DIMENSION = 800;
+          let width = video.videoWidth;
+          let height = video.videoHeight;
+
+          if (width > height) {
+              if (width > MAX_DIMENSION) {
+                  height = Math.round(height * (MAX_DIMENSION / width));
+                  width = MAX_DIMENSION;
+              }
+          } else {
+              if (height > MAX_DIMENSION) {
+                  width = Math.round(width * (MAX_DIMENSION / height));
+                  height = MAX_DIMENSION;
+              }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
   
           const context = canvas.getContext('2d');
           if (context) {
-              context.drawImage(video, 0, 0, canvas.width, canvas.height);
-              const dataUrl = canvas.toDataURL('image/jpeg');
+              context.drawImage(video, 0, 0, width, height);
+              // Compress to JPEG with 0.7 quality to save space
+              const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
               handleChange('photos', [...formData.photos, dataUrl]);
               closeCamera();
           }
